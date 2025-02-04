@@ -58,6 +58,7 @@ jobs:
   deploy:
     name: Deploy
     needs: test
+    environment: production
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
