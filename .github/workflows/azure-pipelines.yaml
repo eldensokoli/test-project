@@ -1,0 +1,60 @@
+name: Publish Bicep Modules
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'CAS/*.bicep'
+      - 'CPS/*.bicep'
+      - 'CAS/*/metadata.json'
+      - 'CPS/*/metadata.json'
+
+jobs:
+  upload_policies:
+    name: Upload modules to Azure Container Registry
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    env:
+      AZURE_SUBSCRIPTION: 'HAFN_STACK_PROD'
+      REGISTRY_NAME: 'vnt4dtkbwfmz6.azurecr.io/bicep/modules'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          
+      - name: Publish CAS Modules
+        run: |
+          for file in $(find CAS -type f -name "*.bicep" ! -path "CAS/*/example/*" ! -path "CAS/*/*/example/*"); do
+            majorMinorVersion=$(jq '(.version.major | tostring) + "." + (.version.minor | tostring)' $(dirname $file)/metadata.json)
+            convertedVersion=$(echo "$majorMinorVersion" | bc)
+            moduleName=$(basename $file .bicep)
+            convertedModuleName=$(echo "$moduleName" | tr '[:upper:]' '[:lower:]')
+            echo "br:${REGISTRY_NAME}/${convertedModuleName}:${convertedVersion}"
+            az bicep publish \
+              --target "br:${REGISTRY_NAME}/${convertedModuleName}:${convertedVersion}" \
+              --file $file \
+              --force
+          done
+        shell: bash
+        
+      - name: Publish CPS Modules
+        run: |
+          for file in $(find CPS -type f -name "*.bicep" ! -path "CPS/*/example/*" ! -path "CPS/*/*/example/*" ! -path "CPS/roleAssignments/deployments/*"); do
+            majorMinorVersion=$(jq '(.version.major | tostring) + "." + (.version.minor | tostring)' $(dirname $file)/metadata.json)
+            convertedVersion=$(echo "$majorMinorVersion" | bc)
+            moduleName=$(basename $file .bicep)
+            convertedModuleName=$(echo "$moduleName" | tr '[:upper:]' '[:lower:]')
+            echo "br:${REGISTRY_NAME}/${convertedModuleName}:${convertedVersion}"
+            az bicep publish \
+              --target "br:${REGISTRY_NAME}/${convertedModuleName}:${convertedVersion}" \
+              --file $file \
+              --force
+          done
+        shell: bash
