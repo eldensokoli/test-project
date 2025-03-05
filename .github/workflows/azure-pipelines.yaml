@@ -1,10 +1,10 @@
 name: Publish Bicep Modules
 
 on:
-  push:
-    branches:
+    push:
+      branches:
       - main
-    paths:
+      paths:
       - 'CAS/*.bicep'
       - 'CPS/*.bicep'
       - 'CAS/*/metadata.json'

@@ -1,0 +1,29 @@
+
+
+
+
+name: Bicep Lint Validation
+
+# No automatic triggers (equivalent to trigger: none and pr: none)
+on:
+  workflow_dispatch:  # Allows manual triggering only
+
+env:
+  LOCATION: 'westeurope'
+
+jobs:
+  lint:
+    name: Lint code
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Run Bicep Linter
+        run: |
+          for file in $(find CAS CPS -maxdepth 2 -type f -name "*.bicep"); do
+            echo "$file is currently linting."
+            az bicep build --file $file
+          done
+        shell: bash
