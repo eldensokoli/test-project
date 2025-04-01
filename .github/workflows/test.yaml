@@ -1,0 +1,14 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CI
+
+# Controls when the workflow will run
+on:
+  repository_dispatch:
+    types: [package_published]
+
+jobs:
+  job_name:
+   runs-on: ubuntu-lastest 
+   steps:
+     - run: echo "test"
