@@ -23,12 +23,13 @@ jobs:
           enable-AzPSSession: true
 
 
-    
+     # for app in test-container-app1 test-container-app2 test-container-app3; do
+     #done
       - name: Update Container Apps
         run: |
-            for app in test-container-app1 test-container-app2 test-container-app3; do
+          
               az containerapp update \
-                --name "$app" \
+                --name test-container-app1\
                 --resource-group containerapps-test \
                 --image ghcr.io/eldensokoli/test-project:latest
-            done
+            
