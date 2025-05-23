@@ -28,7 +28,7 @@ jobs:
         run: |
             for app in container-app1 container-app2 container-app3; do
               az containerapp update \
-                --name $app \
+                --name "$app" \
                 --resource-group containerapps-test \
                 --image ghcr.io/eldensokoli/test-project:latest
             done
