@@ -26,7 +26,7 @@ jobs:
     
       - name: Update Container Apps
         run: |
-            for app in test-container-app1 container-app2 container-app3; do
+            for app in test-container-app1 test-container-app2 test-container-app3; do
               az containerapp update \
                 --name "$app" \
                 --resource-group containerapps-test \
