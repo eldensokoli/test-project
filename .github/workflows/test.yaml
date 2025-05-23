@@ -27,9 +27,11 @@ jobs:
      #done
       - name: Update Container Apps
         run: |
-          
-              az containerapp update \
-                --name test-container-app1\
-                --resource-group containerapps-test \
-                --image ghcr.io/eldensokoli/test-project:latest
-            
+            for app in test-container-app1 test-container-app2 test-container-app3; do
+             echo "Updating container app: $app"
+             az containerapp update \
+              --name "$app" \
+              --resource-group containerapps-test \
+              --image ghcr.io/eldensokoli/test-project:latest
+            done
+
