@@ -5,8 +5,7 @@ permissions:
   contents: read  
 on:
     repository_dispatch:
-    registry_package:
-      types: [published]
+      types: [client_package_push]
     workflow_dispatch:  # Allows manual triggering
 
 jobs:
