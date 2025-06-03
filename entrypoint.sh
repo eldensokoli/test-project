@@ -1,3 +1,5 @@
-#!bin bash
+#!/bin/bash
 
-echo "Hello World2!"
+echo "Hello World52!"
+
+sleep 3600
