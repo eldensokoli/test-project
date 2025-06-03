@@ -1,0 +1,155 @@
+name: Publishing Modules to ACR
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
+
+permissions:
+  id-token: write
+  contents: read  
+
+env:
+  REGISTRY_NAME: 'eldenregistrytest.azurecr.io/bicep/modules'
+
+jobs:
+  upload_modules:
+    name: Publishing Modules to ACR
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    steps:
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID}}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          enable-AzPSSession: true
+          
+      - name: Workaround for Ubuntu Bicep CLI issue
+        run: az config set bicep.use_binary_from_path=false
+
+      - name: Install Bicep CLI
+        run: |
+           az bicep install
+    
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }} # commit SHA of the PR instead of branch because it could be deleted after merge
+      
+      - name: Get Changed Files
+        id: changed-files
+        run: |
+
+          BASE_REF=${{ github.event.pull_request.base.ref }} # Branch the PR was targeting
+          HEAD_SHA=${{ github.event.pull_request.head.sha }} # Last commit of the PR before it was merged
+          
+          git fetch origin $BASE_REF --depth=100 
+          git diff --name-only origin/$BASE_REF $HEAD_SHA | grep -E '\.bicep$' || true > changed_bicep_files.txt
+
+          echo "Changed files:"
+          cat changed_bicep_files.txt
+
+          echo "changed_files<<EOF" >> $GITHUB_OUTPUT
+          cat changed_bicep_files.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+
+      # Publishing only changed modules to ACR
+      - name: Publishing CAS Modules to ACR
+        if: steps.changed-files.outputs.changed_files != '' && contains(steps.changed-files.outputs.changed_files, 'CAS/')
+        run: |
+        
+          changed_files="${{ steps.changed-files.outputs.changed_files }}"           
+          changed_files=$(echo "$changed_files" | tr '\n' ' ')
+          echo "Changed files: $changed_files"
+         
+          for file in $changed_files; do
+              if [[ $file == CAS/* ]]; then
+                metadata_file="$(dirname "$file")/metadata.json"
+                if [ -f "$metadata_file" ]; then
+                  majorMinorVersion=$(jq '(.version.major | tostring) + "." + (.version.minor | tostring)' "$metadata_file")
+                  convertedVersion=$(echo "$majorMinorVersion" | bc)
+                  moduleName=$(basename "$file" .bicep)
+                  convertedModuleName=$(echo "$moduleName" | tr '[:upper:]' '[:lower:]')
+                  echo "Publishing CAS module: br:${{ env.REGISTRY_NAME }}/${convertedModuleName}:${convertedVersion}"
+                  az bicep publish \
+                    --target "br:${{ env.REGISTRY_NAME }}/${convertedModuleName}:${convertedVersion}" \
+                    --file "$file" \
+                    --force
+                fi
+              fi
+            done
+
+      - name: Publishing CPS Modules to ACR
+        if: steps.changed-files.outputs.changed_files != '' && contains(steps.changed-files.outputs.changed_files, 'CPS/')
+        run: |
+          
+          changed_files="${{ steps.changed-files.outputs.changed_files }}"
+          changed_files=$(echo "$changed_files" | tr '\n' ' ')
+          echo "Changed files: $changed_files"
+          
+          for file in $changed_files; do
+            if [[ $file == CPS/* ]]; then
+              metadata_file="$(dirname "$file")/metadata.json"
+              if [ -f "$metadata_file" ]; then
+                majorMinorVersion=$(jq '(.version.major | tostring) + "." + (.version.minor | tostring)' "$metadata_file")
+                convertedVersion=$(echo "$majorMinorVersion" | bc)
+                moduleName=$(basename "$file" .bicep)
+                convertedModuleName=$(echo "$moduleName" | tr '[:upper:]' '[:lower:]')
+                echo "Publishing CPS module: br:${{ env.REGISTRY_NAME }}/${convertedModuleName}:${convertedVersion}"
+                az bicep publish \
+                  --target "br:${{ env.REGISTRY_NAME }}/${convertedModuleName}:${convertedVersion}" \
+                  --file "$file" \
+                  --force
+              fi
+            fi
+          done
+
+
+      # Publishing all modules to ACR when manually triggered
+      - name: Publishing All CAS Modules to ACR
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          for file in $(find CAS -type f -name "*.bicep" ! -path "CAS/*/example/*" ! -path "CAS/*/*/example/*" ! -name "types.bicep"); do
+              if [[ $file == CAS/* ]]; then
+                metadata_file="$(dirname "$file")/metadata.json"
+                if [ -f "$metadata_file" ]; then
+                  majorMinorVersion=$(jq '(.version.major | tostring) + "." + (.version.minor | tostring)' "$metadata_file")
+                  convertedVersion=$(echo "$majorMinorVersion" | bc)
+                  moduleName=$(basename "$file" .bicep)
+                  convertedModuleName=$(echo "$moduleName" | tr '[:upper:]' '[:lower:]')
+                  echo "Publishing CAS module: br:${{ env.REGISTRY_NAME }}/${convertedModuleName}:${convertedVersion}"
+                  az bicep publish \
+                    --target "br:${{ env.REGISTRY_NAME }}/${convertedModuleName}:${convertedVersion}" \
+                    --file "$file" \
+                    --force
+                fi
+              fi
+            done
+
+      - name: Publishing All CPS Modules to ACR
+        if: github.event_name == 'workflow_dispatch'
+        run: | 
+          for file in $(find CPS -type f -name "*.bicep" ! -path "CPS/*/example/*" ! -path "CPS/*/*/example/*" ! -path "CPS/roleAssignment/deployments/*" ! -name "types.bicep"); do
+            if [[ $file == CPS/* ]]; then
+              metadata_file="$(dirname "$file")/metadata.json"
+              if [ -f "$metadata_file" ]; then
+                majorMinorVersion=$(jq '(.version.major | tostring) + "." + (.version.minor | tostring)' "$metadata_file")
+                convertedVersion=$(echo "$majorMinorVersion" | bc)
+                moduleName=$(basename "$file" .bicep)
+                convertedModuleName=$(echo "$moduleName" | tr '[:upper:]' '[:lower:]')
+                echo "Publishing CPS module: br:${{ env.REGISTRY_NAME }}/${convertedModuleName}:${convertedVersion}"
+                az bicep publish \
+                  --target "br:${{ env.REGISTRY_NAME }}/${convertedModuleName}:${convertedVersion}" \
+                  --file "$file" \
+                  --force
+              fi
+            fi
+          done

@@ -1,0 +1,36 @@
+name: Update Azure Container Apps
+
+permissions:
+  id-token: write
+  contents: read  
+on:
+    repository_dispatch:
+      types: [client_package_push]
+    workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  update-container-apps:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Login to Azure via OIDC
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          enable-AzPSSession: true
+
+
+     # for app in test-container-app1 test-container-app2 test-container-app3; do
+     #done
+      - name: Update Container Apps
+        run: |
+            for app in test-container-app1 test-container-app2 test-container-app3; do
+             echo "Updating container app: $app"
+             az containerapp update \
+              --name "$app" \
+              --resource-group containerapps-test \
+              --image ghcr.io/eldensokoli/test-project:latest
+            done
+
