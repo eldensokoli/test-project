@@ -2,7 +2,10 @@ name: Trigger Workflow
 
 on:
    workflow_dispatch:
-  
+   push:
+     branches:
+       - main
+     
 jobs:
   trigger:
     runs-on: ubuntu-latest
