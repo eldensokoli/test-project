@@ -17,6 +17,6 @@ jobs:
           -H "Content-Type: application/json" \
           -d '{
             "tag": "latest",
-            "image": "ghcr.io/eldensokoli/test-project:latest",
+            "image": "ghcr.io/eldensokoli/test-project:dev",
             "sha": "'"${{ github.sha }}"'"
           }'
