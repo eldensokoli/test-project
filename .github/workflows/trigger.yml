@@ -16,6 +16,7 @@ jobs:
         curl -X POST 'https://prod-142.westeurope.logic.azure.com:443/workflows/8a3f012c401641d3b2b5a6d257872eea/triggers/When_a_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_a_HTTP_request_is_received%2Frun&sv=1.0&sig=UkfQ9ylWjHhQGHHPYFtCrzfG34b3buZInrJnQ05BbjM' \
           -H "Content-Type: application/json" \
           -d '{
-            "tag": "dev",
-            "image": "ghcr.io/eldensokoli/test-project:dev",
+            "tag": "rc",
+            "image": "ghcr.io/eldensokoli/test-project:rc",
+            "sha": "sha256:b595d2730ff2b884f7e280120b7c0ecc58ea53d7a86e8d92ee24bb895eb4e889"
           }'
