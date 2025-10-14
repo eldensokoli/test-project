@@ -1,0 +1,13 @@
+{
+    "name": "ls_sp",
+    "properties": {
+        "annotations": [],
+        "type": "HttpServer",
+        "typeProperties": {
+            "url": "https://graph.microsoft.com",
+            "enableServerCertificateValidation": true,
+            "authenticationType": "Anonymous"
+        }
+    },
+    "type": "Microsoft.DataFactory/factories/linkedservices"
+}
