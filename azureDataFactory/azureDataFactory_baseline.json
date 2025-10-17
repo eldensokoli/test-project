@@ -1,5 +1,5 @@
 {
-    "name": "testing_paralelism_baseline",
+    "name": "sharepoint_migration",
     "properties": {
         "activities": [
             {
@@ -19,8 +19,8 @@
                     "headers": {
                         "Content-Type": "application/x-www-form-urlencoded"
                     },
-                    "url": "https://login.microsoftonline.com/30351214-7641-4b5e-afec-4605d845b377/oauth2/v2.0/token",
-                    "body": "grant_type=client_credentials&client_id=f578c4d5-55ad-44f5-a1df-baff29c2575c&client_secret=6vB8Q~abQxU~5qWH15pL__vnm9eclEd~3ketfaR3&scope=https://graph.microsoft.com/.default"
+                    "url": "https://login.microsoftonline.com/3cb927ea-38d4-4f40-a2e3-0d1eb5234b2a/oauth2/v2.0/token",
+                    "body": "grant_type=client_credentials&client_id=65b1ec57-eaf8-4c07-832c-26f2eb6663b4&client_secret=9nr8Q~zatKvsOPQ5FLPO8wOa64B_6b1Dhe3ahaPf&scope=https://graph.microsoft.com/.default"
                 }
             },
             {
@@ -29,7 +29,9 @@
                 "dependsOn": [
                     {
                         "activity": "GetBearerToken",
-                        "dependencyConditions": ["Succeeded"]
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
                     }
                 ],
                 "policy": {
@@ -43,9 +45,12 @@
                 "typeProperties": {
                     "method": "GET",
                     "headers": {
-                        "Authorization": "@{concat('Bearer ', activity('GetBearerToken').output.access_token)}"
+                        "Authorization": {
+                            "value": "@{concat('Bearer ', activity('GetBearerToken').output.access_token)}",
+                            "type": "Expression"
+                        }
                     },
-                    "url": "https://graph.microsoft.com/v1.0/sites/hafnbeckenn.sharepoint.com,ddfa3812-ee44-48b7-83ae-609117e71559,9ba6e0e6-a06b-4651-91f9-ae308aafd743/drives/b!Ejj63UTut0iDrmCRF-cVWebgpptroFFGkfmuMIqv10NXgaE-eKAoQpST-83HmNqa/root/delta"
+                    "url": "https://graph.microsoft.com/v1.0/sites/scoremediagroup.sharepoint.com,ad99a2cf-f497-495e-9b77-9adcc866ca51,c15e768a-4ee6-43f5-849d-04a298eca913/drives/b!z6KZrZf0Xkmbd5rcyGbKUYp2XsHmTvVDhJ0EopjsqRM5SenF8UEVRJVo0URKP8d3/root/delta"
                 }
             },
             {
@@ -54,7 +59,9 @@
                 "dependsOn": [
                     {
                         "activity": "GetAllItems",
-                        "dependencyConditions": ["Succeeded"]
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
                     }
                 ],
                 "userProperties": [],
@@ -75,13 +82,22 @@
                 "dependsOn": [
                     {
                         "activity": "FilterFiles",
-                        "dependencyConditions": ["Succeeded"]
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
                     }
                 ],
+                "policy": {
+                    "secureOutput": false,
+                    "secureInput": false
+                },
                 "userProperties": [],
                 "typeProperties": {
                     "variableName": "StartTime",
-                    "value": "@utcnow()"
+                    "value": {
+                        "value": "@utcnow()",
+                        "type": "Expression"
+                    }
                 }
             },
             {
@@ -90,7 +106,9 @@
                 "dependsOn": [
                     {
                         "activity": "StartTimer",
-                        "dependencyConditions": ["Succeeded"]
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
                     }
                 ],
                 "userProperties": [],
@@ -99,12 +117,13 @@
                         "value": "@activity('FilterFiles').output.value",
                         "type": "Expression"
                     },
-                    "isSequential": true,
-                    "batchCount": 1,
+                    "isSequential": false,
+                    "batchCount": 20,
                     "activities": [
                         {
                             "name": "CopyFileWithName",
                             "type": "Copy",
+                            "dependsOn": [],
                             "policy": {
                                 "timeout": "0.12:00:00",
                                 "retry": 3,
@@ -119,7 +138,10 @@
                                     "storeSettings": {
                                         "type": "HttpReadSettings",
                                         "requestMethod": "GET",
-                                        "additionalHeaders": "@{concat('Authorization: Bearer ', activity('GetBearerToken').output.access_token)}",
+                                        "additionalHeaders": {
+                                            "value": "@{concat('Authorization: Bearer ', activity('GetBearerToken').output.access_token)}",
+                                            "type": "Expression"
+                                        },
                                         "requestTimeout": ""
                                     },
                                     "formatSettings": {
@@ -129,17 +151,20 @@
                                 "sink": {
                                     "type": "BinarySink",
                                     "storeSettings": {
-                                        "type": "AzureBlobStorageWriteSettings"
+                                        "type": "AzureBlobStorageWriteSettings",
+                                        "copyBehavior": "PreserveHierarchy",
+                                        "blockSizeInMB": 100
                                     }
                                 },
-                                "enableStaging": false
+                                "enableStaging": false,
+                                "parallelCopies": 8
                             },
                             "inputs": [
                                 {
                                     "referenceName": "ds_http_dynamic",
                                     "type": "DatasetReference",
                                     "parameters": {
-                                        "relativeUrl": "@concat('/v1.0/sites/hafnbeckenn.sharepoint.com,ddfa3812-ee44-48b7-83ae-609117e71559,9ba6e0e6-a06b-4651-91f9-ae308aafd743/drives/b!Ejj63UTut0iDrmCRF-cVWebgpptroFFGkfmuMIqv10NXgaE-eKAoQpST-83HmNqa/items/', item().id, '/content')"
+                                        "relativeUrl": "@concat('/v1.0/sites/scoremediagroup.sharepoint.com,ad99a2cf-f497-495e-9b77-9adcc866ca51,c15e768a-4ee6-43f5-849d-04a298eca913/drives/b!z6KZrZf0Xkmbd5rcyGbKUYp2XsHmTvVDhJ0EopjsqRM5SenF8UEVRJVo0URKP8d3/items/', item().id, '/content')"
                                     }
                                 }
                             ],
@@ -149,7 +174,7 @@
                                     "type": "DatasetReference",
                                     "parameters": {
                                         "fileName": "@item().name",
-                                        "folderPath": "@concat('EltenTestEnvironment/baseline/', replace(replace(coalesce(item().parentReference.path, ''), '/drives/b!Ejj63UTut0iDrmCRF-cVWebgpptroFFGkfmuMIqv10NXgaE-eKAoQpST-83HmNqa', ''), '/root:', ''))"
+                                        "folderPath": "@concat('sharepoint-migration/ScoreMediaGroup-Root/SMG-Alle-Dokumente/', replace(replace(coalesce(item().parentReference.path, ''), '/drives/b!z6KZrZf0Xkmbd5rcyGbKUYp2XsHmTvVDhJ0EopjsqRM5SenF8UEVRJVo0URKP8d3', ''), '/root:', ''))"
                                     }
                                 }
                             ]
@@ -163,40 +188,20 @@
                 "dependsOn": [
                     {
                         "activity": "ForEachFile",
-                        "dependencyConditions": ["Succeeded"]
-                    }
-                ],
-                "userProperties": [],
-                "typeProperties": {
-                    "variableName": "EndTime",
-                    "value": "@utcnow()"
-                }
-            },
-            {
-                "name": "LogPerformance",
-                "type": "WebActivity",
-                "dependsOn": [
-                    {
-                        "activity": "EndTimer",
-                        "dependencyConditions": ["Succeeded"]
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
                     }
                 ],
                 "policy": {
-                    "timeout": "0.12:00:00",
-                    "retry": 0,
-                    "retryIntervalInSeconds": 30,
                     "secureOutput": false,
                     "secureInput": false
                 },
                 "userProperties": [],
                 "typeProperties": {
-                    "method": "POST",
-                    "headers": {
-                        "Content-Type": "application/json"
-                    },
-                    "url": "https://your-logging-endpoint.com/performance",
-                    "body": {
-                        "value": "@concat('{\"pipelineName\":\"baseline\",\"filesProcessed\":', length(activity('FilterFiles').output.value), ',\"startTime\":\"', variables('StartTime'), '\",\"endTime\":\"', variables('EndTime'), '\",\"durationMinutes\":', div(sub(ticks(variables('EndTime')), ticks(variables('StartTime'))), 600000000), '}')",
+                    "variableName": "EndTime",
+                    "value": {
+                        "value": "@utcnow()",
                         "type": "Expression"
                     }
                 }

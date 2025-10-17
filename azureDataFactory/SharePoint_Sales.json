@@ -1,0 +1,221 @@
+{
+    "name": "SharePoint_Sales",
+    "properties": {
+        "activities": [
+            {
+                "name": "GetBearerToken",
+                "type": "WebActivity",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 3,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": true,
+                    "secureInput": true
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "method": "POST",
+                    "headers": {
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    },
+                    "url": "https://login.microsoftonline.com/3cb927ea-38d4-4f40-a2e3-0d1eb5234b2a/oauth2/v2.0/token",
+                    "body": "grant_type=client_credentials&client_id=65b1ec57-eaf8-4c07-832c-26f2eb6663b4&client_secret=9nr8Q~zatKvsOPQ5FLPO8wOa64B_6b1Dhe3ahaPf&scope=https://graph.microsoft.com/.default"
+                }
+            },
+            {
+                "name": "GetAllItems",
+                "type": "WebActivity",
+                "dependsOn": [
+                    {
+                        "activity": "GetBearerToken",
+                        "dependencyConditions": ["Succeeded"]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 3,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "method": "GET",
+                    "headers": {
+                        "Authorization": "@{concat('Bearer ', activity('GetBearerToken').output.access_token)}"
+                    },
+                    "url": "https://graph.microsoft.com/v1.0/sites/scoremediagroup.sharepoint.com,ad99a2cf-f497-495e-9b77-9adcc866ca51,d4d8f0ac-77a3-4223-8ae1-e6b2fae294c3/drives/b!z6KZrZf0Xkmbd5rcyGbKUazw2NSjdyNCiuHmsvrilMNKg9TTXM7iSpZ0jFvU1Tnf/root/delta"
+                }
+            },
+            {
+                "name": "FilterFiles",
+                "type": "Filter",
+                "dependsOn": [
+                    {
+                        "activity": "GetAllItems",
+                        "dependencyConditions": ["Succeeded"]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "items": {
+                        "value": "@activity('GetAllItems').output.value",
+                        "type": "Expression"
+                    },
+                    "condition": {
+                        "value": "@contains(string(item()), '\"mimeType\"')",
+                        "type": "Expression"
+                    }
+                }
+            },
+            {
+                "name": "StartTimer",
+                "type": "SetVariable",
+                "dependsOn": [
+                    {
+                        "activity": "FilterFiles",
+                        "dependencyConditions": ["Succeeded"]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "variableName": "StartTime",
+                    "value": "@utcnow()"
+                }
+            },
+            {
+                "name": "ForEachFile",
+                "type": "ForEach",
+                "dependsOn": [
+                    {
+                        "activity": "StartTimer",
+                        "dependencyConditions": ["Succeeded"]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "items": {
+                        "value": "@activity('FilterFiles').output.value",
+                        "type": "Expression"
+                    },
+                    "isSequential": false,
+                    "batchCount": 20,
+                    "activities": [
+                        {
+                            "name": "CopyFileWithName",
+                            "type": "Copy",
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 3,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "source": {
+                                    "type": "BinarySource",
+                                    "storeSettings": {
+                                        "type": "HttpReadSettings",
+                                        "requestMethod": "GET",
+                                        "additionalHeaders": "@{concat('Authorization: Bearer ', activity('GetBearerToken').output.access_token)}",
+                                        "requestTimeout": ""
+                                    },
+                                    "formatSettings": {
+                                        "type": "BinaryReadSettings"
+                                    }
+                                },
+                                "sink": {
+                                    "type": "BinarySink",
+                                    "storeSettings": {
+                                        "type": "AzureBlobStorageWriteSettings",
+                                        "copyBehavior": "PreserveHierarchy",
+                                        "blockSizeInMB": 100
+                                    }
+                                },
+                                "enableStaging": false,
+                                "validateDataConsistency": true,
+                                "parallelCopies": 8
+                            },
+                            "inputs": [
+                                {
+                                    "referenceName": "ds_http_dynamic",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "relativeUrl": "@concat('/v1.0/sites/scoremediagroup.sharepoint.com,ad99a2cf-f497-495e-9b77-9adcc866ca51,d4d8f0ac-77a3-4223-8ae1-e6b2fae294c3/drives/b!z6KZrZf0Xkmbd5rcyGbKUazw2NSjdyNCiuHmsvrilMNKg9TTXM7iSpZ0jFvU1Tnf/items/', item().id, '/content')"
+                                    }
+                                }
+                            ],
+                            "outputs": [
+                                {
+                                    "referenceName": "ds_blob_dynamic",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "fileName": "@item().name",
+                                        "folderPath": "@concat('Sales/Dokumente/', replace(replace(coalesce(item().parentReference.path, ''), '/drives/b!z6KZrZf0Xkmbd5rcyGbKUazw2NSjdyNCiuHmsvrilMNKg9TTXM7iSpZ0jFvU1Tnf', ''), '/root:', ''))"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "EndTimer",
+                "type": "SetVariable",
+                "dependsOn": [
+                    {
+                        "activity": "ForEachFile",
+                        "dependencyConditions": ["Succeeded"]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "variableName": "EndTime",
+                    "value": "@utcnow()"
+                }
+            },
+            {
+                "name": "LogPerformance",
+                "type": "WebActivity",
+                "dependsOn": [
+                    {
+                        "activity": "EndTimer",
+                        "dependencyConditions": ["Succeeded"]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "method": "POST",
+                    "headers": {
+                        "Content-Type": "application/json"
+                    },
+                    "url": "https://your-logging-endpoint.com/performance",
+                    "body": {
+                        "value": "@concat('{\"pipelineName\":\"Sales\",\"filesProcessed\":', length(activity('FilterFiles').output.value), ',\"startTime\":\"', variables('StartTime'), '\",\"endTime\":\"', variables('EndTime'), '\",\"durationMinutes\":', div(sub(ticks(variables('EndTime')), ticks(variables('StartTime'))), 600000000), '}')",
+                        "type": "Expression"
+                    }
+                }
+            }
+        ],
+        "variables": {
+            "StartTime": {
+                "type": "String"
+            },
+            "EndTime": {
+                "type": "String"
+            }
+        },
+        "annotations": [],
+        "lastPublishTime": "2025-10-15T12:00:00Z"
+    },
+    "type": "Microsoft.DataFactory/factories/pipelines"
+}

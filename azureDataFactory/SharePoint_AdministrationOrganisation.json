@@ -1,5 +1,5 @@
 {
-    "name": "testing_paralelism",
+    "name": "SharePoint_AdministrationOrganisation",
     "properties": {
         "activities": [
             {
@@ -8,10 +8,10 @@
                 "dependsOn": [],
                 "policy": {
                     "timeout": "0.12:00:00",
-                    "retry": 0,
+                    "retry": 3,
                     "retryIntervalInSeconds": 30,
-                    "secureOutput": false,
-                    "secureInput": false
+                    "secureOutput": true,
+                    "secureInput": true
                 },
                 "userProperties": [],
                 "typeProperties": {
@@ -19,8 +19,8 @@
                     "headers": {
                         "Content-Type": "application/x-www-form-urlencoded"
                     },
-                    "url": "https://login.microsoftonline.com/30351214-7641-4b5e-afec-4605d845b377/oauth2/v2.0/token",
-                    "body": "grant_type=client_credentials&client_id=f578c4d5-55ad-44f5-a1df-baff29c2575c&client_secret=6vB8Q~abQxU~5qWH15pL__vnm9eclEd~3ketfaR3&scope=https://graph.microsoft.com/.default"
+                    "url": "https://login.microsoftonline.com/3cb927ea-38d4-4f40-a2e3-0d1eb5234b2a/oauth2/v2.0/token",
+                    "body": "grant_type=client_credentials&client_id=65b1ec57-eaf8-4c07-832c-26f2eb6663b4&client_secret=9nr8Q~zatKvsOPQ5FLPO8wOa64B_6b1Dhe3ahaPf&scope=https://graph.microsoft.com/.default"
                 }
             },
             {
@@ -34,7 +34,7 @@
                 ],
                 "policy": {
                     "timeout": "0.12:00:00",
-                    "retry": 0,
+                    "retry": 3,
                     "retryIntervalInSeconds": 30,
                     "secureOutput": false,
                     "secureInput": false
@@ -45,7 +45,7 @@
                     "headers": {
                         "Authorization": "@{concat('Bearer ', activity('GetBearerToken').output.access_token)}"
                     },
-                    "url": "https://graph.microsoft.com/v1.0/sites/hafnbeckenn.sharepoint.com,ddfa3812-ee44-48b7-83ae-609117e71559,9ba6e0e6-a06b-4651-91f9-ae308aafd743/drives/b!Ejj63UTut0iDrmCRF-cVWebgpptroFFGkfmuMIqv10NXgaE-eKAoQpST-83HmNqa/root/delta"
+                    "url": "https://graph.microsoft.com/v1.0/sites/scoremediagroup.sharepoint.com,ad99a2cf-f497-495e-9b77-9adcc866ca51,4821d048-992d-4adb-9a0f-66e104c64db4/drives/b!z6KZrZf0Xkmbd5rcyGbKUUjQIUgtmdtKmg9m4QTGTbSHYEP6hZ0GSZV5xLAtKOU-/root/delta"
                 }
             },
             {
@@ -100,29 +100,15 @@
                         "type": "Expression"
                     },
                     "isSequential": false,
-                    "batchCount": 25,
+                    "batchCount": 20,
                     "activities": [
-                        {
-                            "name": "ThrottleDelay",
-                            "type": "Wait",
-                            "userProperties": [],
-                            "typeProperties": {
-                                "waitTimeInSeconds": "@rand(2, 8)"
-                            }
-                        },
                         {
                             "name": "CopyFileWithName",
                             "type": "Copy",
-                            "dependsOn": [
-                                {
-                                    "activity": "ThrottleDelay",
-                                    "dependencyConditions": ["Succeeded"]
-                                }
-                            ],
                             "policy": {
                                 "timeout": "0.12:00:00",
-                                "retry": 5,
-                                "retryIntervalInSeconds": 120,
+                                "retry": 3,
+                                "retryIntervalInSeconds": 30,
                                 "secureOutput": false,
                                 "secureInput": false
                             },
@@ -134,7 +120,7 @@
                                         "type": "HttpReadSettings",
                                         "requestMethod": "GET",
                                         "additionalHeaders": "@{concat('Authorization: Bearer ', activity('GetBearerToken').output.access_token)}",
-                                        "requestTimeout": "00:15:00"
+                                        "requestTimeout": ""
                                     },
                                     "formatSettings": {
                                         "type": "BinaryReadSettings"
@@ -144,18 +130,20 @@
                                     "type": "BinarySink",
                                     "storeSettings": {
                                         "type": "AzureBlobStorageWriteSettings",
-                                        "blockSizeInMB": 100,
-                                        "maxConcurrentConnections": 10
+                                        "copyBehavior": "PreserveHierarchy",
+                                        "blockSizeInMB": 100
                                     }
                                 },
-                                "enableStaging": false
+                                "enableStaging": false,
+                                "validateDataConsistency": true,
+                                "parallelCopies": 8
                             },
                             "inputs": [
                                 {
                                     "referenceName": "ds_http_dynamic",
                                     "type": "DatasetReference",
                                     "parameters": {
-                                        "relativeUrl": "@concat('/v1.0/sites/hafnbeckenn.sharepoint.com,ddfa3812-ee44-48b7-83ae-609117e71559,9ba6e0e6-a06b-4651-91f9-ae308aafd743/drives/b!Ejj63UTut0iDrmCRF-cVWebgpptroFFGkfmuMIqv10NXgaE-eKAoQpST-83HmNqa/items/', item().id, '/content')"
+                                        "relativeUrl": "@concat('/v1.0/sites/scoremediagroup.sharepoint.com,ad99a2cf-f497-495e-9b77-9adcc866ca51,4821d048-992d-4adb-9a0f-66e104c64db4/drives/b!z6KZrZf0Xkmbd5rcyGbKUUjQIUgtmdtKmg9m4QTGTbSHYEP6hZ0GSZV5xLAtKOU-/items/', item().id, '/content')"
                                     }
                                 }
                             ],
@@ -165,21 +153,21 @@
                                     "type": "DatasetReference",
                                     "parameters": {
                                         "fileName": "@item().name",
-                                        "folderPath": "@concat('EltenTestEnvironment/baseline/', replace(replace(coalesce(item().parentReference.path, ''), '/drives/b!Ejj63UTut0iDrmCRF-cVWebgpptroFFGkfmuMIqv10NXgaE-eKAoQpST-83HmNqa', ''), '/root:', ''))"
+                                        "folderPath": "@concat('AdministrationOrganisation/Dokumente/', replace(replace(coalesce(item().parentReference.path, ''), '/drives/b!z6KZrZf0Xkmbd5rcyGbKUUjQIUgtmdtKmg9m4QTGTbSHYEP6hZ0GSZV5xLAtKOU-', ''), '/root:', ''))"
                                     }
                                 }
                             ]
                         }
                     ]
                 }
-            },
-            {
-                "name": "EndTimer",
-                "type": "SetVariable",
-                "dependsOn": [
-                    {
-                        "activity": "ForEachFile",
-                        "dependencyConditions": ["Succeeded"]
+                                {
+                                    "referenceName": "ds_blob_dynamic",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "fileName": "@item().name",
+                                        "folderPath": "@concat('AdministrationOrganisation/Dokumente/', replace(replace(coalesce(item().parentReference.path, ''), '/drives/b!z6KZrZf0Xkmbd5rcyGbKUUjQIUgtmdtKmg9m4QTGTbSHYEP6hZ0GSZV5xLAtKOU-', ''), '/root:', ''))"
+                                    }
+                                }
                     }
                 ],
                 "userProperties": [],
@@ -212,7 +200,7 @@
                     },
                     "url": "https://your-logging-endpoint.com/performance",
                     "body": {
-                        "value": "@concat('{\"pipelineName\":\"baseline\",\"filesProcessed\":', string(length(activity('FilterFiles').output.value)), ',\"startTime\":\"', variables('StartTime'), '\",\"endTime\":\"', variables('EndTime'), '\",\"durationMinutes\":', string(div(sub(ticks(variables('EndTime')), ticks(variables('StartTime'))), 600000000)), '}')",
+                        "value": "@concat('{\"pipelineName\":\"AdministrationOrganisation\",\"filesProcessed\":', length(activity('FilterFiles').output.value), ',\"startTime\":\"', variables('StartTime'), '\",\"endTime\":\"', variables('EndTime'), '\",\"durationMinutes\":', div(sub(ticks(variables('EndTime')), ticks(variables('StartTime'))), 600000000), '}')",
                         "type": "Expression"
                     }
                 }
@@ -227,7 +215,7 @@
             }
         },
         "annotations": [],
-        "lastPublishTime": "2025-10-13T12:00:00Z"
+        "lastPublishTime": "2025-10-15T12:00:00Z"
     },
     "type": "Microsoft.DataFactory/factories/pipelines"
 }
